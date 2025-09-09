@@ -2,7 +2,7 @@ name: Portal Build and Push Docker Image
 
 on:
   push:
-    tags:
+    branches:
       - '*'
 
 env:
@@ -57,12 +57,39 @@ jobs:
           mkdir -p app_dist/
           rm -rf dist-cdn
 
+      - name: Check for package.json changes
+        id: check-package-changes
+        working-directory: src/app/client
+        run: |
+          # Check if package.json has changed compared to what's in yarn.lock
+          if [[ -f yarn.lock ]]; then
+            # Get the last modified time of package.json and yarn.lock
+            PACKAGE_TIME=$(stat -c %Y package.json 2>/dev/null || stat -f %m package.json)
+            LOCK_TIME=$(stat -c %Y yarn.lock 2>/dev/null || stat -f %m yarn.lock)
+            
+            if [[ $PACKAGE_TIME -gt $LOCK_TIME ]]; then
+              echo "package_changed=true" >> $GITHUB_OUTPUT
+              echo "Package.json is newer than yarn.lock - will update lockfile"
+            else
+              echo "package_changed=false" >> $GITHUB_OUTPUT
+              echo "Package.json and yarn.lock are in sync"
+            fi
+          else
+            echo "package_changed=true" >> $GITHUB_OUTPUT
+            echo "No yarn.lock found - will create new lockfile"
+          fi
+
       - name: Install Client Dependencies
         working-directory: src/app/client
-        if: steps.client-node-modules-cache.outputs.cache-hit != 'true'
+        if: steps.client-node-modules-cache.outputs.cache-hit != 'true' || steps.check-package-changes.outputs.package_changed == 'true'
         run: |
-          echo "Cache miss - installing dependencies"
-          yarn install --frozen-lockfile --prefer-offline --no-progress --production=true
+          if [[ "${{ steps.check-package-changes.outputs.package_changed }}" == "true" ]]; then
+            echo "Package.json changed - installing without frozen lockfile to update dependencies"
+            yarn install --prefer-offline --no-progress --production=true
+          else
+            echo "Cache miss - installing dependencies with frozen lockfile"
+            yarn install --frozen-lockfile --prefer-offline --no-progress --production=true
+          fi
 
       - name: Build Client
         working-directory: src/app/client
@@ -140,16 +167,43 @@ jobs:
           mkdir -p app_dist/
           rm -rf dist-cdn
 
+      - name: Check for server package.json changes
+        id: check-server-package-changes
+        working-directory: src/app
+        run: |
+          # Check if package.json has changed compared to what's in yarn.lock
+          if [[ -f yarn.lock ]]; then
+            # Get the last modified time of package.json and yarn.lock
+            PACKAGE_TIME=$(stat -c %Y package.json 2>/dev/null || stat -f %m package.json)
+            LOCK_TIME=$(stat -c %Y yarn.lock 2>/dev/null || stat -f %m yarn.lock)
+            
+            if [[ $PACKAGE_TIME -gt $LOCK_TIME ]]; then
+              echo "package_changed=true" >> $GITHUB_OUTPUT
+              echo "Server package.json is newer than yarn.lock - will update lockfile"
+            else
+              echo "package_changed=false" >> $GITHUB_OUTPUT
+              echo "Server package.json and yarn.lock are in sync"
+            fi
+          else
+            echo "package_changed=true" >> $GITHUB_OUTPUT
+            echo "No server yarn.lock found - will create new lockfile"
+          fi
+
       - name: Install and Build Server
         run: |
           cd src/app
           cp -R libs helpers proxy resourcebundles package.json framework.config.js sunbird-plugins routes constants controllers server.js ./../../Dockerfile app_dist
           cd app_dist
           
-          if [[ "${{ steps.server-node-modules-cache.outputs.cache-hit }}" != "true" ]]; then
-            echo "Cache miss - installing server dependencies"
-            # Use frozen-lockfile for faster, deterministic installs
-            yarn install --frozen-lockfile --prefer-offline --ignore-engines --no-progress --production=true
+          if [[ "${{ steps.server-node-modules-cache.outputs.cache-hit }}" != "true" ]] || [[ "${{ steps.check-server-package-changes.outputs.package_changed }}" == "true" ]]; then
+            if [[ "${{ steps.check-server-package-changes.outputs.package_changed }}" == "true" ]]; then
+              echo "Server package.json changed - installing without frozen lockfile to update dependencies"
+              yarn install --prefer-offline --ignore-engines --no-progress --production=true
+            else
+              echo "Cache miss - installing server dependencies with frozen lockfile"
+              # Use frozen-lockfile for faster, deterministic installs
+              yarn install --frozen-lockfile --prefer-offline --ignore-engines --no-progress --production=true
+            fi
           else
             echo "Using cached server node_modules, skipping install"
           fi
