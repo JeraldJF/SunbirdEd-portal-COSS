@@ -27,29 +27,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        working-directory: src/app/client
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
 
-      - name: Cache yarn dependencies
-        uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-client-${{ hashFiles('src/app/client/yarn.lock', 'src/app/client/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-client-
-            ${{ runner.os }}-yarn-
-
-      - name: Cache client node_modules
-        uses: actions/cache@v4
-        id: client-node-modules-cache
-        with:
-          path: src/app/client/node_modules
-          key: ${{ runner.os }}-client-node-modules-${{ hashFiles('src/app/client/yarn.lock', 'src/app/client/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-client-node-modules-
 
       - name: Create app_dist folder
         run: |
@@ -57,46 +35,15 @@ jobs:
           mkdir -p app_dist/
           rm -rf dist-cdn
 
-      - name: Check for package.json changes
-        id: check-package-changes
-        working-directory: src/app/client
-        run: |
-          # Check if package.json has changed compared to what's in yarn.lock
-          if [[ -f yarn.lock ]]; then
-            # Get the last modified time of package.json and yarn.lock
-            PACKAGE_TIME=$(stat -c %Y package.json 2>/dev/null || stat -f %m package.json)
-            LOCK_TIME=$(stat -c %Y yarn.lock 2>/dev/null || stat -f %m yarn.lock)
-            
-            if [[ $PACKAGE_TIME -gt $LOCK_TIME ]]; then
-              echo "package_changed=true" >> $GITHUB_OUTPUT
-              echo "Package.json is newer than yarn.lock - will update lockfile"
-            else
-              echo "package_changed=false" >> $GITHUB_OUTPUT
-              echo "Package.json and yarn.lock are in sync"
-            fi
-          else
-            echo "package_changed=true" >> $GITHUB_OUTPUT
-            echo "No yarn.lock found - will create new lockfile"
-          fi
-
       - name: Install Client Dependencies
         working-directory: src/app/client
-        if: steps.client-node-modules-cache.outputs.cache-hit != 'true' || steps.check-package-changes.outputs.package_changed == 'true'
         run: |
-          if [[ "${{ steps.check-package-changes.outputs.package_changed }}" == "true" ]]; then
-            echo "Package.json changed - installing without frozen lockfile to update dependencies"
-            yarn install --prefer-offline --no-progress --production=true
-          else
-            echo "Cache miss - installing dependencies with frozen lockfile"
-            yarn install --frozen-lockfile --prefer-offline --no-progress --production=true
-          fi
+          echo "Installing client dependencies fresh from package.json"
+          yarn install --prefer-offline --no-progress --production=true
 
       - name: Build Client
         working-directory: src/app/client
         run: |
-          if [[ "${{ steps.client-node-modules-cache.outputs.cache-hit }}" == "true" ]]; then
-            echo "Using cached node_modules, skipping install"
-          fi
           if [[ "${{ env.BUILD_DOCKER_IMAGE }}" == "true" ]]; then
             npm run build
             cd ..
@@ -137,29 +84,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Get yarn cache directory path for server
-        id: yarn-cache-dir-path-server
-        working-directory: src/app
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
 
-      - name: Cache yarn dependencies for server
-        uses: actions/cache@v4
-        id: yarn-cache-server
-        with:
-          path: ${{ steps.yarn-cache-dir-path-server.outputs.dir }}
-          key: ${{ runner.os }}-yarn-server-${{ hashFiles('src/app/yarn.lock', 'src/app/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-server-
-            ${{ runner.os }}-yarn-
-
-      - name: Cache server node_modules
-        uses: actions/cache@v4
-        id: server-node-modules-cache
-        with:
-          path: src/app/app_dist/node_modules
-          key: ${{ runner.os }}-server-node-modules-${{ hashFiles('src/app/yarn.lock', 'src/app/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-server-node-modules-
 
       - name: Create app_dist folder
         run: |
@@ -167,46 +92,14 @@ jobs:
           mkdir -p app_dist/
           rm -rf dist-cdn
 
-      - name: Check for server package.json changes
-        id: check-server-package-changes
-        working-directory: src/app
-        run: |
-          # Check if package.json has changed compared to what's in yarn.lock
-          if [[ -f yarn.lock ]]; then
-            # Get the last modified time of package.json and yarn.lock
-            PACKAGE_TIME=$(stat -c %Y package.json 2>/dev/null || stat -f %m package.json)
-            LOCK_TIME=$(stat -c %Y yarn.lock 2>/dev/null || stat -f %m yarn.lock)
-            
-            if [[ $PACKAGE_TIME -gt $LOCK_TIME ]]; then
-              echo "package_changed=true" >> $GITHUB_OUTPUT
-              echo "Server package.json is newer than yarn.lock - will update lockfile"
-            else
-              echo "package_changed=false" >> $GITHUB_OUTPUT
-              echo "Server package.json and yarn.lock are in sync"
-            fi
-          else
-            echo "package_changed=true" >> $GITHUB_OUTPUT
-            echo "No server yarn.lock found - will create new lockfile"
-          fi
-
       - name: Install and Build Server
         run: |
           cd src/app
           cp -R libs helpers proxy resourcebundles package.json framework.config.js sunbird-plugins routes constants controllers server.js ./../../Dockerfile app_dist
           cd app_dist
           
-          if [[ "${{ steps.server-node-modules-cache.outputs.cache-hit }}" != "true" ]] || [[ "${{ steps.check-server-package-changes.outputs.package_changed }}" == "true" ]]; then
-            if [[ "${{ steps.check-server-package-changes.outputs.package_changed }}" == "true" ]]; then
-              echo "Server package.json changed - installing without frozen lockfile to update dependencies"
-              yarn install --prefer-offline --ignore-engines --no-progress --production=true
-            else
-              echo "Cache miss - installing server dependencies with frozen lockfile"
-              # Use frozen-lockfile for faster, deterministic installs
-              yarn install --frozen-lockfile --prefer-offline --ignore-engines --no-progress --production=true
-            fi
-          else
-            echo "Using cached server node_modules, skipping install"
-          fi
+          echo "Installing server dependencies fresh from package.json"
+          yarn install --prefer-offline --ignore-engines --no-progress --production=true
           
           node helpers/resourceBundles/build.js -task="phraseAppPull"
 
