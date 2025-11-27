@@ -5,7 +5,7 @@
  */
 
 const request = require('request');
-const logger = require('sb_logger_util_v2');
+const { logger } = require('@project-sunbird/logger'); // Use existing logger
 const crypto = require('crypto');
 
 class NodeBBTokenManager {

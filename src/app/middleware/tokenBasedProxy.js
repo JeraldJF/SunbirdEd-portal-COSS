@@ -10,9 +10,18 @@ const proxy = require('express-http-proxy');
 function createTokenBasedProxy(discussions_middleware) {
     const tokenManager = new NodeBBTokenManager(discussions_middleware);
 
+    // Helper method for fallback authentication
+    function fallbackToUID(srcReq) {
+        let uid = srcReq.session['nodebb_uid'] || srcReq.session.userId;
+        if (uid && srcReq.body && typeof srcReq.body === 'object') {
+            srcReq.body['_uid'] = uid;
+            console.log('Fallback: Added _uid to request body:', uid);
+        }
+    }
+
     return function proxyObjectWithToken() {
         const proxyUtils = require('../proxy/proxyUtils');
-        const logger = require('sb_logger_util_v2');
+        const { logger } = require('@project-sunbird/logger'); // Use existing logger
 
         return proxy(discussions_middleware, {
             // Add token to request headers instead of body
@@ -39,7 +48,7 @@ function createTokenBasedProxy(discussions_middleware) {
                                     console.log('Added custom Sunbird token for user:', srcReq.session.userId);
                                 } else {
                                     // Token invalid, fallback to _uid
-                                    this.fallbackToUID(srcReq);
+                                    fallbackToUID(srcReq);
                                 }
                             } else {
                                 // Standard NodeBB bearer token
@@ -48,14 +57,14 @@ function createTokenBasedProxy(discussions_middleware) {
                             }
                         } else {
                             // Token generation failed, use fallback
-                            this.fallbackToUID(srcReq);
+                            fallbackToUID(srcReq);
                         }
                         
                         resolve(proxyReqOpts);
                     } catch (error) {
                         logger.error('Error adding NodeBB token to request:', error);
                         // Fallback to _uid method
-                        this.fallbackToUID(srcReq);
+                        fallbackToUID(srcReq);
                         resolve(proxyReqOpts);
                     }
                 });
@@ -99,15 +108,6 @@ function createTokenBasedProxy(discussions_middleware) {
                 } catch (err) {
                     logger.error({message: err});
                     return proxyUtils.handleSessionExpiry(proxyRes, proxyResData, req, res);
-                }
-            },
-
-            // Helper method for fallback authentication
-            fallbackToUID: function(srcReq) {
-                let uid = srcReq.session['nodebb_uid'] || srcReq.session.userId;
-                if (uid && srcReq.body && typeof srcReq.body === 'object') {
-                    srcReq.body['_uid'] = uid;
-                    console.log('Fallback: Added _uid to request body:', uid);
                 }
             }
         });
