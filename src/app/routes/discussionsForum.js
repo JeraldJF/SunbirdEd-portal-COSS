@@ -197,9 +197,17 @@ function proxyObject() {
         proxyReqPathResolver: function (req) {
             let urlParam = req.originalUrl;
             console.log("Request comming from :", urlParam)
-            const uid = req.session['nodebb_uid'];
+            let uid = req.session['nodebb_uid'];
+            
+            // Fallback: If no nodebb_uid in session, try to get it from Sunbird session
+            if (!uid && req.session.userId) {
+                uid = req.session.userId;
+                console.log("Using Sunbird userId as fallback UID:", uid);
+            }
+            
             if (!_.isEmpty(req.body)) {
                 req.body['_uid'] = uid;
+                console.log("Setting _uid in request body:", uid);
                 return require('url').parse(discussions_middleware + urlParam).path;
             } else {
                 let query = require('url').parse(req.url).query;
