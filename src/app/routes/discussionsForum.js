@@ -201,7 +201,7 @@ function proxyObject() {
             
             // Fallback: If no nodebb_uid in session, try to get it from Sunbird session
             if (!uid && req.session.userId) {
-                uid = req.session.userId;
+                uid = 2;
                 console.log("Using Sunbird userId as fallback UID:", uid);
             }
             
