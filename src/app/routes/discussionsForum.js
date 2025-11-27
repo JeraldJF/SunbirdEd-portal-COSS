@@ -9,7 +9,10 @@ const bodyParser = require('body-parser');
 const dateFormat = require('dateformat')
 const { logger } = require('@project-sunbird/logger');
 const isAPIWhitelisted  = require('../helpers/apiWhiteList');
+const createTokenBasedProxy = require('../middleware/tokenBasedProxy');
 
+// Initialize token-based proxy
+const tokenBasedProxy = createTokenBasedProxy(discussions_middleware);
 
 module.exports = function (app) {
 
@@ -70,46 +73,46 @@ module.exports = function (app) {
     // app.get(`${BASE_REPORT_URL}/user/admin/upvoted`, verifyToken(), proxyObject());
     // app.get(`${BASE_REPORT_URL}/user/admin/downvoted`, verifyToken(), proxyObject());
 
-    // topics apis
-    app.post(`${BASE_REPORT_URL}/v2/topics`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.post(`${BASE_REPORT_URL}/v2/topics/:tid`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.post(`${BASE_REPORT_URL}/v2/topics/update/:tid`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid`, verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/state`,bodyParser.json({ limit: '10mb' }),  verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/follow`,bodyParser.json({ limit: '10mb' }),  verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid/follow`, verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/tags`,bodyParser.json({ limit: '10mb' }),  verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid/tags`, verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/pin`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid/pin`, verifyToken(), proxyObject());
+    // topics apis - using token-based authentication for write operations
+    app.post(`${BASE_REPORT_URL}/v2/topics`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.post(`${BASE_REPORT_URL}/v2/topics/:tid`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.post(`${BASE_REPORT_URL}/v2/topics/update/:tid`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid`, verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/state`,bodyParser.json({ limit: '10mb' }),  verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/follow`,bodyParser.json({ limit: '10mb' }),  verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid/follow`, verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/tags`,bodyParser.json({ limit: '10mb' }),  verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid/tags`, verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/topics/:tid/pin`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/topics/:tid/pin`, verifyToken(), tokenBasedProxy());
 
-    // categories apis
-    app.post(`${BASE_REPORT_URL}/v2/categories`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/categories/:cid`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/categories/:cid`, verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/categories/:cid/state`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/categories/:cid/state`, verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/categories/:cid/privileges`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/categories/:cid/privileges`, verifyToken(), proxyObject());
+    // categories apis - using token-based authentication for write operations
+    app.post(`${BASE_REPORT_URL}/v2/categories`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/categories/:cid`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/categories/:cid`, verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/categories/:cid/state`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/categories/:cid/state`, verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/categories/:cid/privileges`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/categories/:cid/privileges`, verifyToken(), tokenBasedProxy());
 
-    // groups apis
-    app.post(`${BASE_REPORT_URL}/v2/groups`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/groups/:slug`, verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/groups/:slug/membership`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/groups/:slug/membership/:uid`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/groups/:slug/membership`, verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/groups/:slug/membership/:uid`, verifyToken(), proxyObject());
+    // groups apis - using token-based authentication for write operations
+    app.post(`${BASE_REPORT_URL}/v2/groups`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/groups/:slug`, verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/groups/:slug/membership`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/groups/:slug/membership/:uid`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/groups/:slug/membership`, verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/groups/:slug/membership/:uid`, verifyToken(), tokenBasedProxy());
 
 
-    // post apis
-    app.post(`${BASE_REPORT_URL}/v2/posts/:pid`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid`, verifyToken(), proxyObject());
-    app.put(`${BASE_REPORT_URL}/v2/posts/:pid/state`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid/state`, verifyToken(), proxyObject());
-    app.post(`${BASE_REPORT_URL}/v2/posts/:pid/vote`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid/vote`, verifyToken(), proxyObject());
-    app.post(`${BASE_REPORT_URL}/v2/posts/:pid/bookmark`, bodyParser.json({ limit: '10mb' }), verifyToken(), proxyObject());
-    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid/bookmark`, verifyToken(), proxyObject());
+    // post apis - using token-based authentication for write operations
+    app.post(`${BASE_REPORT_URL}/v2/posts/:pid`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid`, verifyToken(), tokenBasedProxy());
+    app.put(`${BASE_REPORT_URL}/v2/posts/:pid/state`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid/state`, verifyToken(), tokenBasedProxy());
+    app.post(`${BASE_REPORT_URL}/v2/posts/:pid/vote`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid/vote`, verifyToken(), tokenBasedProxy());
+    app.post(`${BASE_REPORT_URL}/v2/posts/:pid/bookmark`, bodyParser.json({ limit: '10mb' }), verifyToken(), tokenBasedProxy());
+    app.delete(`${BASE_REPORT_URL}/v2/posts/:pid/bookmark`, verifyToken(), tokenBasedProxy());
 
     // util apis : not require for now
     // app.post(`${BASE_REPORT_URL}/v2/util/upload`, verifyToken(), proxyObject());
